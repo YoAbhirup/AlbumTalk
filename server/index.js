@@ -15,10 +15,16 @@ const db = new pg.Client({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD
+    password: process.env.DB_PASSWORD,
+    ssl: { rejectUnauthorized: false } 
 });
 
-db.connect();
+db.connect()
+  .then(() => console.log("✅ Connected to Supabase Transaction Pooler"))
+  .catch(err => {
+      console.error("❌ DB connection failed:", err.message);
+      console.error(err.stack);
+  });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
