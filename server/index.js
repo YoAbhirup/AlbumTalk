@@ -198,5 +198,23 @@ app.get('/getratings', async (req, res) => {
   }
 });
 
+app.get('/health', async (req, res) => {
+  try {
+    const result = await db.query('SELECT NOW()');
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      timestamp: result.rows[0].now 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected',
+      error: err.message 
+    });
+  }
+});
+
+
 // Start server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
