@@ -18,7 +18,7 @@ export default function Home() {
         const topalbums = async() => {
             setAlbumsLoading(true);
             try {
-                const response = await axios.get('http://localhost:3000/topalbums');
+                const response = await axios.get('https://album-app-api.azurewebsites.net/topalbums');
                 if (response.status === 200) {
                     setTopAlbums(response.data);  
                 }
@@ -37,7 +37,7 @@ export default function Home() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:3000/api', { album, artist });  
+            const response = await axios.post('https://album-app-api.azurewebsites.net/api', { album, artist });  
             if (response.status === 200) {
                 navigate('/albums', { state: { albums: response.data } });
             }

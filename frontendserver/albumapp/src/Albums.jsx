@@ -19,7 +19,7 @@ export default function Albums() {
             const albumIds = albums.releases.map(release => release.id).join(",");
     
             try {
-                const response = await axios.get(`http://localhost:3000/getratings?albumIds=${albumIds}`);
+                const response = await axios.get(`https://album-app-api.azurewebsites.net/getratings?albumIds=${albumIds}`);
     
                 if (response.status === 200) {
                     setAlbumRatings(response.data);
@@ -36,7 +36,7 @@ export default function Albums() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:3000/albumpage', { albumId });
+            const response = await axios.post('https://album-app-api.azurewebsites.net/albumpage', { albumId });
 
             if (response.status === 200) {
                 navigate('/albumpage', { state: { albumData: response.data.albumData } });

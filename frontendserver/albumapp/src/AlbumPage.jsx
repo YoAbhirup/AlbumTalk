@@ -19,7 +19,7 @@ export default function AlbumPage() {
         const getComments = async()=>{
             try{
             const id = albumData.id;
-            const response = await axios.get('http://localhost:3000/getcomments', {
+            const response = await axios.get('https://album-app-api.azurewebsites.net/getcomments', {
                 params: { id: albumData.id }  
             });
             if(response.status === 200){
@@ -41,7 +41,7 @@ export default function AlbumPage() {
             const id = albumData.id;
             const date = new Date().toISOString();
     
-            const response = await axios.post('http://localhost:3000/submitcomment', { 
+            const response = await axios.post('https://album-app-api.azurewebsites.net/submitcomment', { 
                 comment, 
                 id, 
                 date  
@@ -50,7 +50,7 @@ export default function AlbumPage() {
             if (response.status === 200) {
                 setComment('');
                 // Refresh comments
-                const newCommentsResponse = await axios.get('http://localhost:3000/getcomments', {
+                const newCommentsResponse = await axios.get('https://album-app-api.azurewebsites.net/getcomments', {
                     params: { id: albumData.id }
                 });
     
@@ -73,7 +73,7 @@ export default function AlbumPage() {
             const name = albumData.name;
             const artist = albumData.artists[0].name;
             const img = albumData.images[1].url;
-            const response = await axios.post("http://localhost:3000/submitrating", { 
+            const response = await axios.post("https://album-app-api.azurewebsites.net/submitrating", { 
                 id, 
                 name, 
                 newrating: newValue, 
