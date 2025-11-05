@@ -10,15 +10,13 @@ const { Pool } = pg;
 
 // ✅ Use connection pool instead of single client
 const db = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
+  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
   ssl: { rejectUnauthorized: false },
-  max: 5, // limit open connections (important for free tier)
-  idleTimeoutMillis: 5000, // close idle connections
-  connectionTimeoutMillis: 5000, // fail fast if Supabase doesn't respond
+  max: 2, // Reduced for free tier
+  min: 0, // Don't maintain idle connections
+  idleTimeoutMillis: 10000, // Close idle connections faster
+  connectionTimeoutMillis: 10000,
+  allowExitOnIdle: true, // Allow pool to close when idle
 });
 
 db.on('connect', () => console.log('✅ Connected to Supabase Transaction Pooler'));
@@ -62,7 +60,7 @@ app.get('/getcomments', async (req, res) => {
     res.json(response.rows);
   } catch (err) {
     console.error('Error fetching comments:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 });
 
@@ -76,19 +74,36 @@ app.post('/submitcomment', async (req, res) => {
     res.json({ message: 'Comment submitted successfully' });
   } catch (err) {
     console.error('Error submitting comment:', err);
-    res.status(500).json({ error: 'Failed to submit comment' });
+    res.status(500).json({ error: 'Failed to submit comment', details: err.message });
   }
 });
 
 app.get('/topalbums', async (req, res) => {
   try {
+    console.log('🔍 Attempting to fetch top albums...');
+    
+    // Test database connection first
+    const testQuery = await db.query('SELECT NOW()');
+    console.log('✅ Database connection OK:', testQuery.rows[0]);
+    
     const response = await db.query(
       'SELECT * FROM ratings ORDER BY rating DESC, count DESC LIMIT 3'
     );
+    
+    console.log('✅ Query executed, rows returned:', response.rows.length);
     res.json(response.rows.length > 0 ? response.rows : []);
   } catch (err) {
-    console.error('Error fetching top albums:', err.message);
-    res.status(500).json({ error: 'Failed to fetch top albums' });
+    console.error('❌ Error fetching top albums:', err);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      stack: err.stack
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch top albums',
+      details: err.message,
+      code: err.code
+    });
   }
 });
 
@@ -119,7 +134,7 @@ app.post('/api', async (req, res) => {
     res.json({ releases });
   } catch (error) {
     console.error('Error fetching data from Spotify:', error.message);
-    res.status(500).json({ error: 'Failed to fetch album data' });
+    res.status(500).json({ error: 'Failed to fetch album data', details: error.message });
   }
 });
 
@@ -148,7 +163,7 @@ app.post('/albumpage', async (req, res) => {
     res.json({ albumData, artistImgUrl });
   } catch (error) {
     console.error('Error fetching album details:', error.message);
-    res.status(500).json({ error: 'Failed to fetch album details' });
+    res.status(500).json({ error: 'Failed to fetch album details', details: error.message });
   }
 });
 
@@ -175,7 +190,7 @@ app.post('/submitrating', async (req, res) => {
     res.json({ message: 'Rating updated successfully' });
   } catch (error) {
     console.error('Error updating rating:', error.message);
-    res.status(500).json({ error: 'Failed to update rating' });
+    res.status(500).json({ error: 'Failed to update rating', details: error.message });
   }
 });
 
@@ -194,27 +209,44 @@ app.get('/getratings', async (req, res) => {
     res.json(ratingsData);
   } catch (error) {
     console.error('Error fetching ratings:', error.message);
-    res.status(500).json({ error: 'Failed to retrieve ratings' });
+    res.status(500).json({ error: 'Failed to retrieve ratings', details: error.message });
   }
 });
 
+// Health check endpoint
 app.get('/health', async (req, res) => {
+  const client = await db.connect();
   try {
-    const result = await db.query('SELECT NOW()');
+    const result = await client.query('SELECT NOW()');
     res.json({ 
       status: 'healthy', 
       database: 'connected',
-      timestamp: result.rows[0].now 
+      timestamp: result.rows[0].now,
+      poolInfo: {
+        total: db.totalCount,
+        idle: db.idleCount,
+        waiting: db.waitingCount
+      }
     });
   } catch (err) {
+    console.error('Health check failed:', err);
     res.status(500).json({ 
       status: 'unhealthy', 
       database: 'disconnected',
-      error: err.message 
+      error: err.message,
+      code: err.code
     });
+  } finally {
+    client.release();
   }
 });
 
-
 // Start server
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Environment check:`);
+  console.log(`   DB_HOST: ${process.env.DB_HOST ? '✅' : '❌'}`);
+  console.log(`   DB_NAME: ${process.env.DB_NAME ? '✅' : '❌'}`);
+  console.log(`   DB_USER: ${process.env.DB_USER ? '✅' : '❌'}`);
+  console.log(`   DB_PASSWORD: ${process.env.DB_PASSWORD ? '✅' : '❌'}`);
+});
